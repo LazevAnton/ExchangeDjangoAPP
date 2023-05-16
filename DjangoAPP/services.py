@@ -55,6 +55,14 @@ class ExchangeMonoBankService:
         return number.alpha_3
 
     def get_data(self):
+        """
+        elif data['rateBuy'] < 2.000 or data['rateSell'] < 2.000:
+            Монобанк в APi возвращает как я понял разницу между курсом НБУ и курсом самого банка
+            посколько эта информация не нужна то ее исключаем из массива, а так убирается все где
+            в API банка курсы покупки и продажи равны нулю такое встречается на паре UAH/GBP
+            этой парой Монобанк не торгует, а в задаче было сказано получать курс фунта, если данных
+            нет то зачем им быть в базе
+        """
         req = requests.get(self.URL_API)
         response = req.json()
         baseCurrency = self.ConvertIsoCurrency(response[0]['currencyCodeB'])
