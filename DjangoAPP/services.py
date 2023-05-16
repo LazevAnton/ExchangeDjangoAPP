@@ -84,7 +84,8 @@ class ExchangeMonoBankService:
                         'baseCurrency': baseCurrency,
                         'currency': self.ConvertIsoCurrency(data['currencyCodeA']),
                         'rateBuy': data['rateBuy'],
-                        'rateSell': data['rateSell']
+                        'rateSell': data['rateSell'],
+                        'date_rate': datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
                     }
                 )
         return currency_data
