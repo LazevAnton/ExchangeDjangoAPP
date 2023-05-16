@@ -47,6 +47,7 @@ def index(request):
                 currency=mono.get('currency'),
                 buy_rate=mono.get('rateBuy'),
                 sale_rate=mono.get('rateSell'),
+                date_rate=mono.get('date_rate'),
                 provider=monobank_id
             )
             currencys.save()
