@@ -1,19 +1,26 @@
 import requests
 from datetime import datetime, timedelta
 
+from DjangoAPP.models import ExchangeProviders
+from pycountrycodes import currencies
+
 
 class ExchangePrivate24Service:
     URL_API = 'https://api.privatbank.ua/p24api/exchange_rates'
     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
+
     # PARAMS = {
     #     'date': '03.01.2023'
     # }
 
     def get_data(self):
-        begin_date = datetime(2023, 5, 1).date()
+        begin_date = datetime(2023, 1, 2).date()
         current_date = datetime.now().date()
-
-        currency_date = []
+        PROVIDER = ExchangeProviders.objects.filter(provider_name='PriVatBank').first()
+        if PROVIDER is None:
+            PROVIDER = ExchangeProviders(provider_name='PriVatBank', provider_api_url=f'{self.URL_API}')
+            PROVIDER.save()
+        currency_data = []
         while begin_date <= current_date:
             date_str = begin_date.strftime('%d.%m.%Y')
             params = {'date': date_str}
@@ -26,7 +33,7 @@ class ExchangePrivate24Service:
                 if currency['currency'] not in self.CURRENCY:
                     continue
                 else:
-                    currency_date.append(
+                    currency_data.append(
                         {
                             'base_currency': baseCurrency,
                             'currency': currency['currency'],
@@ -36,11 +43,40 @@ class ExchangePrivate24Service:
                         }
                     )
             begin_date += timedelta(days=1)
-        return currency_date
+        return currency_data
 
-# class ExchangeMonoBankService:
-#     URL_API = 'https://api.privatbank.ua/p24api/exchange_rates'
-#     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
-#     PARAMS = {
-#         'date': '14.05.2023'
-#     }
+
+class ExchangeMonoBankService:
+    URL_API = 'https://api.monobank.ua/bank/currency'
+    CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
+
+    def ConvertIsoCurrency(self, code: int):
+        number = currencies.get(numeric=str(code))
+        return number.alpha_3
+
+    def get_data(self):
+        req = requests.get(self.URL_API)
+        response = req.json()
+        baseCurrency = self.ConvertIsoCurrency(response[0]['currencyCodeB'])
+        PROVIDER = ExchangeProviders.objects.filter(provider_name='MonoBank').first()
+        if PROVIDER is None:
+            PROVIDER = ExchangeProviders(provider_name='MonoBank', provider_api_url=f'{self.URL_API}')
+            PROVIDER.save()
+        currency_data = []
+        for data in response:
+            if data['currencyCodeA'] == 8 or data['currencyCodeA'] == 51:
+                continue
+            elif data['rateBuy'] < 2.000 or data['rateSell'] < 2.000:
+                continue
+            elif self.ConvertIsoCurrency(data['currencyCodeA']) not in self.CURRENCY:
+                continue
+            else:
+                currency_data.append(
+                    {
+                        'baseCurrency': baseCurrency,
+                        'currency': self.ConvertIsoCurrency(data['currencyCodeA']),
+                        'rateBuy': data['rateBuy'],
+                        'rateSell': data['rateSell']
+                    }
+                )
+        return currency_data
