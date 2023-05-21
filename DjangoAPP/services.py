@@ -4,48 +4,88 @@ from datetime import datetime, timedelta
 from DjangoAPP.models import ExchangeProviders
 from pycountrycodes import currencies
 
+import concurrent.futures
+import requests
+from datetime import datetime, timedelta
+
 
 class ExchangePrivate24Service:
     URL_API = 'https://api.privatbank.ua/p24api/exchange_rates'
     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
 
-    # PARAMS = {
-    #     'date': '03.01.2023'
-    # }
+    def __init__(self):
+        self.currency_data = []
 
-    def get_data(self):
+    def get_data(self, date):
+        date_str = date.strftime('%d.%m.%Y')
+        params = {'date': date_str}
+        req = requests.get(self.URL_API, params=params)
+        req_data = req.json()
+        baseCurrency = req_data['baseCurrencyLit']
+        date = req_data['date']
+
+        for currency in req_data['exchangeRate']:
+            if currency['currency'] not in self.CURRENCY:
+                continue
+            else:
+                self.currency_data.append(
+                    {
+                        'base_currency': baseCurrency,
+                        'currency': currency['currency'],
+                        'sale_rate': currency['saleRateNB'],
+                        'buy_rate': currency['purchaseRateNB'],
+                        'date': date
+                    }
+                )
+
+    def get_data_ThreadPoolExecutor(self):
         begin_date = datetime(2023, 1, 2).date()
-        current_date = datetime.now().date()
-        PROVIDER = ExchangeProviders.objects.filter(provider_name='PriVatBank').first()
-        if PROVIDER is None:
-            PROVIDER = ExchangeProviders(provider_name='PriVatBank', provider_api_url=f'{self.URL_API}')
-            PROVIDER.save()
-        currency_data = []
-        while begin_date <= current_date:
-            date_str = begin_date.strftime('%d.%m.%Y')
-            params = {'date': date_str}
-            req = requests.get(self.URL_API, params=params)
-            req_data = req.json()
-            baseCurrency = req_data['baseCurrencyLit']
-            date = req_data['date']
+        end_date = datetime.now().date()
+        date_range = [begin_date + timedelta(days=i) for i in range((end_date - begin_date).days + 1)]
 
-            for currency in req_data['exchangeRate']:
-                if currency['currency'] not in self.CURRENCY:
-                    continue
-                else:
-                    currency_data.append(
-                        {
-                            'base_currency': baseCurrency,
-                            'currency': currency['currency'],
-                            'sale_rate': currency['saleRateNB'],
-                            'buy_rate': currency['purchaseRateNB'],
-                            'date': date
-                        }
-                    )
-            begin_date += timedelta(days=1)
-        return currency_data
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(self.get_data, date_range)
+        return self.currency_data
 
 
+# class ExchangePrivate24Service:
+#     URL_API = 'https://api.privatbank.ua/p24api/exchange_rates'
+#     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
+#
+#
+#     def get_data(self):
+#         begin_date = datetime(2023, 1, 2).date()
+#         current_date = datetime.now().date()
+#         PROVIDER = ExchangeProviders.objects.filter(provider_name='PriVatBank').first()
+#         if PROVIDER is None:
+#             PROVIDER = ExchangeProviders(provider_name='PriVatBank', provider_api_url=f'{self.URL_API}')
+#             PROVIDER.save()
+#         currency_data = []
+#         while begin_date <= current_date:
+#             date_str = begin_date.strftime('%d.%m.%Y')
+#             params = {'date': date_str}
+#             req = requests.get(self.URL_API, params=params)
+#             req_data = req.json()
+#             baseCurrency = req_data['baseCurrencyLit']
+#             date = req_data['date']
+#
+#             for currency in req_data['exchangeRate']:
+#                 if currency['currency'] not in self.CURRENCY:
+#                     continue
+#                 else:
+#                     currency_data.append(
+#                         {
+#                             'base_currency': baseCurrency,
+#                             'currency': currency['currency'],
+#                             'sale_rate': currency['saleRateNB'],
+#                             'buy_rate': currency['purchaseRateNB'],
+#                             'date': date
+#                         }
+#                     )
+#             begin_date += timedelta(days=1)
+#         return currency_data
+#
+#
 class ExchangeMonoBankService:
     URL_API = 'https://api.monobank.ua/bank/currency'
     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']

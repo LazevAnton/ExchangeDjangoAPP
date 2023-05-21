@@ -6,7 +6,7 @@ from DjangoAPP.services import ExchangePrivate24Service, ExchangeMonoBankService
 
 def index(request):
     privatbank = ExchangePrivate24Service()
-    data = privatbank.get_data()
+    data = privatbank.get_data_ThreadPoolExecutor()
     privatbank_id = ExchangeProviders.objects.filter(provider_name='PriVatBank').first()
     for all_currencys in data:
         currencys = (
