@@ -27,7 +27,7 @@ class SendCurrency:
             subject=f'Курс валют на {today}',
             body='Приветствую! Файл во вложении.',
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=['a.lazev@transdata.no', 'lazev.anton@gmail.com'],
+            to=['lazev.anton@gmail.com'],
         )
         email.attach_file(file_path)
         email.send()
