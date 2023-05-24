@@ -1,12 +1,60 @@
+import os
+
 import requests
 from datetime import datetime, timedelta
 
-from DjangoAPP.models import ExchangeProviders
+from DjangoAPP.models import ExchangeProviders, ExchangeRates
 from pycountrycodes import currencies
-
+import pandas as pd
 import concurrent.futures
 import requests
 from datetime import datetime, timedelta
+
+from django.core.mail import EmailMessage
+from django.conf import settings
+
+
+class SendCurrency:
+    def send_custom_email(self):
+        current_rate = self.get_current_rate()
+        df = pd.DataFrame.from_dict(current_rate)
+        today = datetime.today().strftime('%d-%m-%Y')
+        file = f'{today}.csv'
+        file_path = os.path.join(settings.BASE_DIR, file)
+        df.to_csv(file_path, index=False)
+
+        email = EmailMessage(
+            subject=f'Курс валют на {today}',
+            body='Приветствую! Файл во вложении.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=['a.lazev@transdata.no', 'lazev.anton@gmail.com'],
+        )
+        email.attach_file(file_path)
+        email.send()
+        os.remove(file_path)
+
+    def get_current_rate(self):
+        current_rate = []
+        today = datetime.today().strftime('%d.%m.%Y')
+        data = ExchangeRates.objects.filter(date_rate=today).all()
+        for ex in data:
+            base_currency = ex.base_currency
+            currency = ex.currency
+            sale = ex.sale_rate
+            buy = ex.buy_rate
+            date = ex.date_rate
+            provider = ex.provider.provider_name
+            current_rate.append(
+                {
+                    'Bank': provider,
+                    'BaseCurrency': base_currency,
+                    'Currency': currency,
+                    'Sale': str(sale),
+                    'Buy': str(buy),
+                    'Date': date
+                }
+            )
+        return current_rate
 
 
 class ExchangePrivate24Service:
@@ -33,13 +81,13 @@ class ExchangePrivate24Service:
                         'base_currency': baseCurrency,
                         'currency': currency['currency'],
                         'sale_rate': currency['saleRateNB'],
-                        'buy_rate': currency['purchaseRateNB'],
+                        'buy_rate': currency['purchaseRate'],
                         'date': date
                     }
                 )
 
     def get_data_ThreadPoolExecutor(self):
-        begin_date = datetime(2023, 1, 2).date()
+        begin_date = datetime(2023, 5, 1).date()
         end_date = datetime.now().date()
         date_range = [begin_date + timedelta(days=i) for i in range((end_date - begin_date).days + 1)]
 
@@ -78,7 +126,7 @@ class ExchangePrivate24Service:
 #                             'base_currency': baseCurrency,
 #                             'currency': currency['currency'],
 #                             'sale_rate': currency['saleRateNB'],
-#                             'buy_rate': currency['purchaseRateNB'],
+#                             'buy_rate': currency['purchaseRate'],
 #                             'date': date
 #                         }
 #                     )

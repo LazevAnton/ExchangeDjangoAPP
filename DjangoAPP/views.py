@@ -1,7 +1,6 @@
 from django.shortcuts import render
-
 from DjangoAPP.models import ExchangeProviders, ExchangeRates
-from DjangoAPP.services import ExchangePrivate24Service, ExchangeMonoBankService
+from DjangoAPP.services import ExchangePrivate24Service, ExchangeMonoBankService, SendCurrency
 
 
 def index(request):
@@ -12,7 +11,8 @@ def index(request):
         currencys = (
             ExchangeRates.objects.filter(
                 currency=all_currencys.get('currency'),
-                date_rate=all_currencys.get('date')
+                date_rate=all_currencys.get('date'),
+                provider=privatbank_id
             ).first()
         )
         if currencys:
@@ -35,12 +35,13 @@ def index(request):
         currencys = (
             ExchangeRates.objects.filter(
                 currency=mono.get('currency'),
-                buy_rate=mono.get('rateBuy')
+                buy_rate=mono.get('rateBuy'),
+                provider=monobank_id
             ).first()
         )
         if currencys:
-            currencys.buy_rate = mono.get('rateBuy'),
-            currencys.sale_rate = mono.get('rateSell')
+            currencys.buy_rate = mono.get('currency'),
+            currencys.sale_rate = mono.get('date_rate')
         else:
             currencys = ExchangeRates(
                 base_currency=mono.get('baseCurrency'),
@@ -51,4 +52,7 @@ def index(request):
                 provider=monobank_id
             )
             currencys.save()
+
+    send_service = SendCurrency()
+    send_service.send_custom_email()
     return render(request, 'index.html')
