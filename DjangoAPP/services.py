@@ -3,6 +3,8 @@ import os
 import requests
 from datetime import datetime, timedelta
 
+from django.db import transaction
+
 from DjangoAPP.models import ExchangeProviders, ExchangeRates
 from pycountrycodes import currencies
 import pandas as pd
@@ -70,75 +72,45 @@ class ExchangePrivate24Service:
         req = requests.get(self.URL_API, params=params)
         req_data = req.json()
         baseCurrency = req_data['baseCurrencyLit']
+        privatbank, create = ExchangeProviders.objects.get_or_create(provider_name='PrivatBank',
+                                                                     provider_api_url=self.URL_API)
         date = req_data['date']
-
         for currency in req_data['exchangeRate']:
             if currency['currency'] not in self.CURRENCY:
                 continue
-            else:
-                self.currency_data.append(
-                    {
-                        'base_currency': baseCurrency,
-                        'currency': currency['currency'],
-                        'sale_rate': currency['saleRateNB'],
-                        'buy_rate': currency['purchaseRate'],
-                        'date': date
-                    }
-                )
 
-    def get_data_ThreadPoolExecutor(self):
-        begin_date = datetime(2023, 5, 1).date()
+            exist = ExchangeRates.objects.filter(
+                currency=currency['currency'],
+                date_rate=date
+            ).exists()
+
+            if not exist:
+                rates = ExchangeRates(
+                    base_currency=baseCurrency,
+                    currency=currency['currency'],
+                    sale_rate=currency['saleRateNB'],
+                    buy_rate=currency['purchaseRate'],
+                    date_rate=date,
+                    provider_id=privatbank.id
+                )
+                self.currency_data.append(rates)
+
+    def get_data_thread_pool_executor(self):
+        begin_date = datetime(2023, 6, 1).date()
         end_date = datetime.now().date()
         date_range = [begin_date + timedelta(days=i) for i in range((end_date - begin_date).days + 1)]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             executor.map(self.get_data, date_range)
-        return self.currency_data
+        with transaction.atomic():
+            ExchangeRates.objects.bulk_create(self.currency_data)
 
 
-# class ExchangePrivate24Service:
-#     URL_API = 'https://api.privatbank.ua/p24api/exchange_rates'
-#     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
-#
-#
-#     def get_data(self):
-#         begin_date = datetime(2023, 1, 2).date()
-#         current_date = datetime.now().date()
-#         PROVIDER = ExchangeProviders.objects.filter(provider_name='PriVatBank').first()
-#         if PROVIDER is None:
-#             PROVIDER = ExchangeProviders(provider_name='PriVatBank', provider_api_url=f'{self.URL_API}')
-#             PROVIDER.save()
-#         currency_data = []
-#         while begin_date <= current_date:
-#             date_str = begin_date.strftime('%d.%m.%Y')
-#             params = {'date': date_str}
-#             req = requests.get(self.URL_API, params=params)
-#             req_data = req.json()
-#             baseCurrency = req_data['baseCurrencyLit']
-#             date = req_data['date']
-#
-#             for currency in req_data['exchangeRate']:
-#                 if currency['currency'] not in self.CURRENCY:
-#                     continue
-#                 else:
-#                     currency_data.append(
-#                         {
-#                             'base_currency': baseCurrency,
-#                             'currency': currency['currency'],
-#                             'sale_rate': currency['saleRateNB'],
-#                             'buy_rate': currency['purchaseRate'],
-#                             'date': date
-#                         }
-#                     )
-#             begin_date += timedelta(days=1)
-#         return currency_data
-#
-#
 class ExchangeMonoBankService:
     URL_API = 'https://api.monobank.ua/bank/currency'
     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
 
-    def ConvertIsoCurrency(self, code: int):
+    def get_convert_Iso_currency(self, code: int):
         number = currencies.get(numeric=str(code))
         return number.alpha_3
 
@@ -153,27 +125,42 @@ class ExchangeMonoBankService:
         """
         req = requests.get(self.URL_API)
         response = req.json()
-        baseCurrency = self.ConvertIsoCurrency(response[0]['currencyCodeB'])
-        PROVIDER = ExchangeProviders.objects.filter(provider_name='MonoBank').first()
-        if PROVIDER is None:
-            PROVIDER = ExchangeProviders(provider_name='MonoBank', provider_api_url=f'{self.URL_API}')
-            PROVIDER.save()
+        baseCurrency = self.get_convert_Iso_currency(response[0]['currencyCodeB'])
+        monobank, create = ExchangeProviders.objects.get_or_create(provider_name='MonoBank',
+                                                                   provider_api_url=self.URL_API)
         currency_data = []
         for data in response:
             if data['currencyCodeA'] == 8 or data['currencyCodeA'] == 51:
                 continue
             elif data['rateBuy'] < 2.000 or data['rateSell'] < 2.000:
                 continue
-            elif self.ConvertIsoCurrency(data['currencyCodeA']) not in self.CURRENCY:
+            elif self.get_convert_Iso_currency(data['currencyCodeA']) not in self.CURRENCY:
                 continue
             else:
-                currency_data.append(
-                    {
-                        'baseCurrency': baseCurrency,
-                        'currency': self.ConvertIsoCurrency(data['currencyCodeA']),
-                        'rateBuy': data['rateBuy'],
-                        'rateSell': data['rateSell'],
-                        'date_rate': datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
-                    }
-                )
-        return currency_data
+                exist = ExchangeRates.objects.filter(
+                    currency=self.get_convert_Iso_currency(data['currencyCodeA']),
+                    date_rate=data['date']
+                ).exists()
+
+                if not exist:
+                    rates = ExchangeRates(
+                        base_currency=baseCurrency,
+                        currency=self.get_convert_Iso_currency(data['currencyCodeA']),
+                        sale_rate=data['rateBuy'],
+                        buy_rate=data['rateSell'],
+                        date_rate=datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y"),
+                        provider_id=monobank.id
+                    )
+                    currency_data.append(rates)
+        ExchangeRates.objects.bulk_create(currency_data)
+
+        #         currency_data.append(
+        #             {
+        #                 'baseCurrency': baseCurrency,
+        #                 'currency': self.get_convert_Iso_currency(data['currencyCodeA']),
+        #                 'rateBuy': data['rateBuy'],
+        #                 'rateSell': data['rateSell'],
+        #                 'date_rate': datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
+        #             }
+        #         )
+        # return currency_data
