@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from DjangoAPP.models import ExchangeProviders, ExchangeRates
 from DjangoAPP.services import ExchangePrivate24Service, ExchangeMonoBankService, SendCurrency
 
 
