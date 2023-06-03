@@ -139,7 +139,7 @@ class ExchangeMonoBankService:
             else:
                 exist = ExchangeRates.objects.filter(
                     currency=self.get_convert_iso_currency(data['currencyCodeA']),
-                    date_rate=data['date']
+                    date_rate=datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
                 ).exists()
 
                 if not exist:
