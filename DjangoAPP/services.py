@@ -23,7 +23,7 @@ class SendCurrency:
             subject=f'Курс валют на {today}',
             body='Приветствую! Файл во вложении.',
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=['fifand1005@gmail.com'],
+            to=['lazev.anton@gmail.com'],
         )
         email.attach_file(file_path)
         email.send()
@@ -75,7 +75,8 @@ class ExchangePrivate24Service:
 
             exist = ExchangeRates.objects.filter(
                 currency=currency['currency'],
-                date_rate=date
+                date_rate=date,
+                provider_id=privatbank.id
             ).exists()
 
             if not exist:
@@ -133,7 +134,8 @@ class ExchangeMonoBankService:
             else:
                 exist = ExchangeRates.objects.filter(
                     currency=self.get_convert_iso_currency(data['currencyCodeA']),
-                    date_rate=datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
+                    date_rate=datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y"),
+                    provider_id=monobank.id
                 ).exists()
 
                 if not exist:
