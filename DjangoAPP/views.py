@@ -5,14 +5,15 @@ from DjangoAPP.services import ExchangePrivate24Service, ExchangeMonoBankService
 
 def index(request):
     privatbank = ExchangePrivate24Service()
-    data = privatbank.get_data_ThreadPoolExecutor()
-    privatbank_id = ExchangeProviders.objects.filter(provider_name='PriVatBank').first()
+    data = privatbank.get_data_thread_pool_executor()
+    privatbank_id, create = ExchangeProviders.objects.get_or_create(provider_name='PriVatBank',
+                                                                    provider_api_url=privatbank.URL_API)
     for all_currencys in data:
         currencys = (
             ExchangeRates.objects.filter(
                 currency=all_currencys.get('currency'),
                 date_rate=all_currencys.get('date'),
-                provider=privatbank_id
+                provider=privatbank_id.id
             ).first()
         )
         if currencys:
@@ -30,13 +31,14 @@ def index(request):
             currencys.save()
     monobank = ExchangeMonoBankService()
     data = monobank.get_data()
-    monobank_id = ExchangeProviders.objects.filter(provider_name='MonoBank').first()
+    monobank_id, create = ExchangeProviders.objects.get_or_create(provider_name='MonoBank',
+                                                                  provider_api_url=monobank.URL_API)
     for mono in data:
         currencys = (
             ExchangeRates.objects.filter(
                 currency=mono.get('currency'),
                 buy_rate=mono.get('rateBuy'),
-                provider=monobank_id
+                provider=monobank_id.id
             ).first()
         )
         if currencys:

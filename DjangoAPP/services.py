@@ -27,7 +27,7 @@ class SendCurrency:
             subject=f'Курс валют на {today}',
             body='Приветствую! Файл во вложении.',
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=['fifand1005@gmail.com'],
+            to=['lazev.anton@gmail.com'],
         )
         email.attach_file(file_path)
         email.send()
@@ -86,8 +86,8 @@ class ExchangePrivate24Service:
                     }
                 )
 
-    def get_data_ThreadPoolExecutor(self):
-        begin_date = datetime(2023, 5, 1).date()
+    def get_data_thread_pool_executor(self):
+        begin_date = datetime(2023, 6, 1).date()
         end_date = datetime.now().date()
         date_range = [begin_date + timedelta(days=i) for i in range((end_date - begin_date).days + 1)]
 
@@ -138,7 +138,7 @@ class ExchangeMonoBankService:
     URL_API = 'https://api.monobank.ua/bank/currency'
     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
 
-    def ConvertIsoCurrency(self, code: int):
+    def get_convert_iso_currency(self, code: int):
         number = currencies.get(numeric=str(code))
         return number.alpha_3
 
@@ -153,24 +153,20 @@ class ExchangeMonoBankService:
         """
         req = requests.get(self.URL_API)
         response = req.json()
-        baseCurrency = self.ConvertIsoCurrency(response[0]['currencyCodeB'])
-        PROVIDER = ExchangeProviders.objects.filter(provider_name='MonoBank').first()
-        if PROVIDER is None:
-            PROVIDER = ExchangeProviders(provider_name='MonoBank', provider_api_url=f'{self.URL_API}')
-            PROVIDER.save()
+        baseCurrency = self.get_convert_iso_currency(response[0]['currencyCodeB'])
         currency_data = []
         for data in response:
             if data['currencyCodeA'] == 8 or data['currencyCodeA'] == 51:
                 continue
             elif data['rateBuy'] < 2.000 or data['rateSell'] < 2.000:
                 continue
-            elif self.ConvertIsoCurrency(data['currencyCodeA']) not in self.CURRENCY:
+            elif self.get_convert_iso_currency(data['currencyCodeA']) not in self.CURRENCY:
                 continue
             else:
                 currency_data.append(
                     {
                         'baseCurrency': baseCurrency,
-                        'currency': self.ConvertIsoCurrency(data['currencyCodeA']),
+                        'currency': self.get_convert_iso_currency(data['currencyCodeA']),
                         'rateBuy': data['rateBuy'],
                         'rateSell': data['rateSell'],
                         'date_rate': datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
