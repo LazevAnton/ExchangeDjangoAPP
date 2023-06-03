@@ -154,13 +154,3 @@ class ExchangeMonoBankService:
                     currency_data.append(rates)
         ExchangeRates.objects.bulk_create(currency_data)
 
-        #         currency_data.append(
-        #             {
-        #                 'baseCurrency': baseCurrency,
-        #                 'currency': self.get_convert_Iso_currency(data['currencyCodeA']),
-        #                 'rateBuy': data['rateBuy'],
-        #                 'rateSell': data['rateSell'],
-        #                 'date_rate': datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y")
-        #             }
-        #         )
-        # return currency_data
