@@ -110,7 +110,7 @@ class ExchangeMonoBankService:
     URL_API = 'https://api.monobank.ua/bank/currency'
     CURRENCY = ['USD', 'GBP', 'EUR', 'CHF']
 
-    def get_convert_Iso_currency(self, code: int):
+    def get_convert_iso_currency(self, code: int):
         number = currencies.get(numeric=str(code))
         return number.alpha_3
 
@@ -125,7 +125,7 @@ class ExchangeMonoBankService:
         """
         req = requests.get(self.URL_API)
         response = req.json()
-        baseCurrency = self.get_convert_Iso_currency(response[0]['currencyCodeB'])
+        baseCurrency = self.get_convert_iso_currency(response[0]['currencyCodeB'])
         monobank, create = ExchangeProviders.objects.get_or_create(provider_name='MonoBank',
                                                                    provider_api_url=self.URL_API)
         currency_data = []
@@ -134,18 +134,18 @@ class ExchangeMonoBankService:
                 continue
             elif data['rateBuy'] < 2.000 or data['rateSell'] < 2.000:
                 continue
-            elif self.get_convert_Iso_currency(data['currencyCodeA']) not in self.CURRENCY:
+            elif self.get_convert_iso_currency(data['currencyCodeA']) not in self.CURRENCY:
                 continue
             else:
                 exist = ExchangeRates.objects.filter(
-                    currency=self.get_convert_Iso_currency(data['currencyCodeA']),
+                    currency=self.get_convert_iso_currency(data['currencyCodeA']),
                     date_rate=data['date']
                 ).exists()
 
                 if not exist:
                     rates = ExchangeRates(
                         base_currency=baseCurrency,
-                        currency=self.get_convert_Iso_currency(data['currencyCodeA']),
+                        currency=self.get_convert_iso_currency(data['currencyCodeA']),
                         sale_rate=data['rateBuy'],
                         buy_rate=data['rateSell'],
                         date_rate=datetime.fromtimestamp(data['date']).strftime("%d.%m.%Y"),
