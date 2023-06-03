@@ -1,17 +1,11 @@
 import os
-
-import requests
-from datetime import datetime, timedelta
-
 from django.db import transaction
-
 from DjangoAPP.models import ExchangeProviders, ExchangeRates
 from pycountrycodes import currencies
 import pandas as pd
 import concurrent.futures
 import requests
 from datetime import datetime, timedelta
-
 from django.core.mail import EmailMessage
 from django.conf import settings
 
